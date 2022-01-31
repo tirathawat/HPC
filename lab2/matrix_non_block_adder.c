@@ -7,6 +7,7 @@
 void separate_data_to_processes(int number_processes, Matrix *matrixa, Matrix *matrixb, int block_size, int remaining_block_size)
 {
     int i;
+    MPI_Request request;
 
     for (i = 1; i < number_processes; i++)
     {
@@ -14,9 +15,9 @@ void separate_data_to_processes(int number_processes, Matrix *matrixa, Matrix *m
         float *vectora = get_vector_from_matrix(matrixa, i, block_size);
         float *vectorb = get_vector_from_matrix(matrixb, i, block_size);
 
-        MPI_Send(&sending_size, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
-        MPI_Send(vectora, sending_size, MPI_FLOAT, i, 1, MPI_COMM_WORLD);
-        MPI_Send(vectorb, sending_size, MPI_FLOAT, i, 2, MPI_COMM_WORLD);
+        MPI_Isend(&sending_size, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
+        MPI_Isend(vectora, sending_size, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request);
+        MPI_Isend(vectorb, sending_size, MPI_FLOAT, i, 2, MPI_COMM_WORLD, &request);
     }
 }
 
@@ -24,12 +25,18 @@ void receive_answer_from_processes(int number_processes, Matrix *answer, int blo
 {
     int i;
     MPI_Status status;
+    MPI_Request request[number_processes];
 
     for (i = 1; i < number_processes; i++)
     {
         int sending_size = calculate_sending_size(i, number_processes, block_size, remaining_block_size);
 
-        MPI_Recv(&answer->data[0][0] + block_size * (i - 1), sending_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
+        MPI_Irecv(&answer->data[0][0] + block_size * (i - 1), sending_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &request[i]);
+    }
+
+    for (i = 1; i < number_processes; i++)
+    {
+        MPI_Wait(&request[i], &status);
     }
 }
 
@@ -59,18 +66,23 @@ void run_receiver()
     int size;
     float *answer;
     MPI_Status status;
+    MPI_Request request_size, request_vectora, request_vectorb, request_answer;
 
-    MPI_Recv(&size, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+    MPI_Irecv(&size, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &request_size);
+    MPI_Wait(&request_size, &status);
 
     float *vectora = (float *)malloc(size * sizeof(float));
     float *vectorb = (float *)malloc(size * sizeof(float));
 
-    MPI_Recv(vectora, size, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
-    MPI_Recv(vectorb, size, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
+    MPI_Irecv(vectora, size, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &request_vectora);
+    MPI_Irecv(vectorb, size, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &request_vectorb);
+
+    MPI_Wait(&request_vectora, &status);
+    MPI_Wait(&request_vectorb, &status);
 
     answer = plus_vector(vectora, vectorb, size);
 
-    MPI_Send(answer, size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
+    MPI_Isend(answer, size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD, &request_answer);
 }
 
 void handle_processes(int number_processes, int process_rank)
