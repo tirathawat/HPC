@@ -94,7 +94,7 @@ float *get_vector_from_matrix(Matrix *matrix, int current, int block_size)
 
 int calculate_block_size(int rows_count, int columns_count, int number_processes)
 {
-    return (rows_count * columns_count) / (number_processes - 1);
+    return (rows_count * columns_count) / (number_processes);
 }
 
 int calculate_remaining_block_size(int block_size, int rows_count, int columns_count)

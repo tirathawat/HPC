@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <mpi.h>
 
 #include "matrix.h"
@@ -29,13 +30,22 @@ void receive_answer_from_processes(int number_processes, Matrix *answer, int blo
     {
         int sending_size = calculate_sending_size(i, number_processes, block_size, remaining_block_size);
 
-        MPI_Recv(&answer->data[0][0] + block_size * (i - 1), sending_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&answer->data[0][0] + block_size * i, sending_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
     }
+}
+
+void process_own_data(Matrix *matrixa, Matrix *matrixb, Matrix *answer, int block_size)
+{
+    float *vector = plus_vector(&matrixa->data[0][0], &matrixb->data[0][0], block_size);
+    memcpy(&answer->data[0][0], vector, sizeof(float) * block_size);
 }
 
 void run_sender(int number_processes)
 {
+    double start_time, end_time;
     Matrix matrixa, matrixb, answer;
+
+    printf("Running...\n");
 
     create_matrix_from_file(MATRIX_A, &matrixa);
     create_matrix_from_file(MATRIX_B, &matrixb);
@@ -47,11 +57,21 @@ void run_sender(int number_processes)
     int block_size = calculate_block_size(matrixa.rows_count, matrixa.columns_count, number_processes);
     int remaining_block_size = calculate_remaining_block_size(block_size, matrixa.rows_count, matrixa.columns_count);
 
-    separate_data_to_processes(number_processes, &matrixa, &matrixb, block_size, remaining_block_size);
+    start_time = MPI_Wtime();
 
+    separate_data_to_processes(number_processes, &matrixa, &matrixb, block_size, remaining_block_size);
     receive_answer_from_processes(number_processes, &answer, block_size, remaining_block_size);
+    process_own_data(&matrixa, &matrixb, &answer, block_size);
+
+    end_time = MPI_Wtime();
+
+    printf("Calculation completed with timing %1.2f sec\n", end_time - start_time);
+
+    printf("Writing answer file...\n");
 
     write_matrix_file(MATRIX_ANSWER, &answer);
+
+    printf("Writing answer file completed\n");
 }
 
 void run_receiver()
