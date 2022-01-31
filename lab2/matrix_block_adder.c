@@ -16,12 +16,14 @@ typedef struct matrix_t
 float **allocate_matrix_memory(int row_count, int column_count)
 {
     int i;
+    int size = column_count * row_count;
 
-    float **matrix = malloc(row_count * sizeof(float));
+    float *data = malloc(size * sizeof(float));
+    float **matrix = malloc(size * sizeof(float));
 
     for (i = 0; i < row_count; i++)
     {
-        matrix[i] = malloc(column_count * sizeof(float));
+        matrix[i] = &(data[column_count * i]);
     }
 
     return matrix;
@@ -32,6 +34,13 @@ void create_matrix_from_file(char *filename, Matrix *matrix)
     int i, j;
 
     FILE *fp = fopen(filename, "r");
+
+    if (fp == NULL)
+    {
+        printf("Error: could not open file %s\n", filename);
+        exit(1);
+    }
+
     fscanf(fp, "%d %d", &matrix->rows_count, &matrix->columns_count);
 
     matrix->data = allocate_matrix_memory(matrix->rows_count, matrix->columns_count);
@@ -52,13 +61,20 @@ void write_matrix_file(char *filename, Matrix *matrix)
     int i, j;
 
     FILE *fp = fopen(filename, "w");
+
+    if (fp == NULL)
+    {
+        printf("Error: could not open file %s\n", filename);
+        exit(1);
+    }
+
     fprintf(fp, "%d %d\n", matrix->rows_count, matrix->columns_count);
 
     for (i = 0; i < matrix->rows_count; i++)
     {
         for (j = 0; j < matrix->columns_count; j++)
         {
-            fprintf(fp, "%.1f ", matrix->data[i][j]);
+            fprintf(fp, "%.6f ", matrix->data[i][j]);
         }
 
         fputs("\n", fp);
@@ -83,7 +99,7 @@ float *plus_vector(float *vector1, float *vector2, int size)
 
 int calculate_block_size(int rows_count, int columns_count, int number_processes)
 {
-    return (rows_count * columns_count) / number_processes;
+    return (rows_count * columns_count) / (number_processes - 1);
 }
 
 int calculate_remaining_block_size(int block_size, int rows_count, int columns_count)
@@ -107,14 +123,14 @@ int calculate_sending_size(int current, int number_processes, int block_size, in
 
 float *get_vector_from_matrix(Matrix *matrix, int current, int block_size)
 {
-    return &matrix->data[0][0] + block_size * current;
+    return &matrix->data[0][0] + block_size * (current - 1);
 }
 
 void separate_data_to_processes(int number_processes, Matrix *matrixa, Matrix *matrixb, int block_size, int remaining_block_size)
 {
     int i;
 
-    for (i = 0; i < number_processes; i++)
+    for (i = 1; i < number_processes; i++)
     {
         int sending_size = calculate_sending_size(i, number_processes, block_size, remaining_block_size);
         float *vectora = get_vector_from_matrix(matrixa, i, block_size);
@@ -131,33 +147,33 @@ void receive_answer_from_processes(int number_processes, Matrix *answer, int blo
     int i;
     MPI_Status status;
 
-    for (i = 0; i < number_processes; i++)
+    for (i = 1; i < number_processes; i++)
     {
         int sending_size = calculate_sending_size(i, number_processes, block_size, remaining_block_size);
 
-        MPI_Recv(&answer->data[0][0] + block_size * i, sending_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
+        MPI_Recv(&answer->data[0][0] + block_size * (i - 1), sending_size, MPI_FLOAT, i, 0, MPI_COMM_WORLD, &status);
     }
 }
 
 void run_sender(int number_processes)
 {
-    Matrix *matrixa, *matrixb, *answer;
+    Matrix matrixa, matrixb, answer;
 
-    create_matrix_from_file(MATRIX_A_SMALL, matrixa);
-    create_matrix_from_file(MATRIX_B_SMALL, matrixb);
+    create_matrix_from_file(MATRIX_A_SMALL, &matrixa);
+    create_matrix_from_file(MATRIX_B_SMALL, &matrixb);
 
-    answer->rows_count = matrixa->rows_count;
-    answer->columns_count = matrixa->columns_count;
-    answer->data = allocate_matrix_memory(matrixa->rows_count, matrixa->columns_count);
+    answer.rows_count = matrixa.rows_count;
+    answer.columns_count = matrixa.columns_count;
+    answer.data = allocate_matrix_memory(matrixa.rows_count, matrixa.columns_count);
 
-    int block_size = calculate_block_size(matrixa->rows_count, matrixa->columns_count, number_processes);
-    int remaining_block_size = calculate_remaining_block_size(block_size, matrixa->rows_count, matrixa->columns_count);
+    int block_size = calculate_block_size(matrixa.rows_count, matrixa.columns_count, number_processes);
+    int remaining_block_size = calculate_remaining_block_size(block_size, matrixa.rows_count, matrixa.columns_count);
 
-    separate_data_to_processes(number_processes, matrixa, matrixb, block_size, remaining_block_size);
+    separate_data_to_processes(number_processes, &matrixa, &matrixb, block_size, remaining_block_size);
 
-    receive_answer_from_processes(number_processes, answer, block_size, remaining_block_size);
+    receive_answer_from_processes(number_processes, &answer, block_size, remaining_block_size);
 
-    write_matrix_file(MATRIX_ANSWER_SMALL, answer);
+    write_matrix_file(MATRIX_ANSWER_SMALL, &answer);
 }
 
 void run_receiver()
@@ -174,7 +190,7 @@ void run_receiver()
     MPI_Recv(vectora, size, MPI_FLOAT, 0, 1, MPI_COMM_WORLD, &status);
     MPI_Recv(vectorb, size, MPI_FLOAT, 0, 2, MPI_COMM_WORLD, &status);
 
-    answer = plus_vector(vectora, vectora, size);
+    answer = plus_vector(vectora, vectorb, size);
 
     MPI_Send(answer, size, MPI_FLOAT, 0, 0, MPI_COMM_WORLD);
 }
