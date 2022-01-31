@@ -4,6 +4,7 @@
 #include <mpi.h>
 
 #include "matrix.h"
+#include "parallel_helper.h"
 
 void separate_data_to_processes(int number_processes, Matrix *matrixa, Matrix *matrixb, int block_size, int remaining_block_size)
 {
@@ -13,8 +14,8 @@ void separate_data_to_processes(int number_processes, Matrix *matrixa, Matrix *m
     for (i = 1; i < number_processes; i++)
     {
         int sending_size = calculate_sending_size(i, number_processes, block_size, remaining_block_size);
-        float *vectora = get_vector_from_matrix(matrixa, i, block_size);
-        float *vectorb = get_vector_from_matrix(matrixb, i, block_size);
+        float *vectora = get_vector_from_matrix(matrixa, block_size * (i - 1));
+        float *vectorb = get_vector_from_matrix(matrixb, block_size * (i - 1));
 
         MPI_Isend(&sending_size, 1, MPI_INT, i, 0, MPI_COMM_WORLD, &request);
         MPI_Isend(vectora, sending_size, MPI_FLOAT, i, 1, MPI_COMM_WORLD, &request);

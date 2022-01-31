@@ -87,31 +87,7 @@ float *plus_vector(float *vector1, float *vector2, int size)
     return result;
 }
 
-float *get_vector_from_matrix(Matrix *matrix, int current, int block_size)
+float *get_vector_from_matrix(Matrix *matrix, int offset)
 {
-    return &matrix->data[0][0] + block_size * (current - 1);
-}
-
-int calculate_block_size(int rows_count, int columns_count, int number_processes)
-{
-    return (rows_count * columns_count) / (number_processes);
-}
-
-int calculate_remaining_block_size(int block_size, int rows_count, int columns_count)
-{
-    return (rows_count * columns_count) % block_size;
-}
-
-int calculate_sending_size(int current, int number_processes, int block_size, int remaining_block_size)
-{
-    int is_lasted_process = current == number_processes - 1;
-
-    if (is_lasted_process)
-    {
-        return block_size;
-    }
-    else
-    {
-        return block_size + remaining_block_size;
-    }
+    return &matrix->data[0][0] + offset;
 }
