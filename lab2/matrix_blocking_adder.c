@@ -43,6 +43,8 @@ void process_own_data(Matrix *matrixa, Matrix *matrixb, Matrix *answer, int bloc
 
 void run_sender(int number_processes)
 {
+    double start_time, end_time;
+
     Matrix matrixa, matrixb, answer;
 
     create_matrix_from_file(MATRIX_A, &matrixa);
@@ -55,11 +57,17 @@ void run_sender(int number_processes)
     int block_size = calculate_block_size(matrixa.rows_count, matrixa.columns_count, number_processes);
     int remaining_block_size = calculate_remaining_block_size(block_size, matrixa.rows_count, matrixa.columns_count);
 
+    start_time = MPI_Wtime();
+
     separate_data_to_processes(number_processes, &matrixa, &matrixb, block_size, remaining_block_size);
-    receive_answer_from_processes(number_processes, &answer, block_size, remaining_block_size);
     process_own_data(&matrixa, &matrixb, &answer, block_size);
+    receive_answer_from_processes(number_processes, &answer, block_size, remaining_block_size);
+
+    end_time = MPI_Wtime();
 
     write_matrix_file(MATRIX_ANSWER, &answer);
+
+    printf("Running completed with timing %f sec\n", end_time - start_time);
 }
 
 void run_receiver()
@@ -95,8 +103,6 @@ void handle_processes(int number_processes, int process_rank)
 
 int main(int argc, char *argv[])
 {
-    double start_time, end_time;
-
     int number_processes;
     int process_rank;
 
@@ -104,17 +110,9 @@ int main(int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &number_processes);
     MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
 
-    printf("Process rank %d is running...\n", process_rank);
-
-    start_time = MPI_Wtime();
-
     handle_processes(number_processes, process_rank);
 
-    end_time = MPI_Wtime();
-
     MPI_Finalize();
-
-    printf("Process rank %d is running completed with timing %f sec\n", process_rank, end_time - start_time);
 
     return 0;
 }
