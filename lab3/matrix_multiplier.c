@@ -119,7 +119,7 @@ void run_many_processes(int number_processes, int process_rank)
 
     calculate_sending_rows_size(sending_rows_size, matrix_a.rows_count, number_processes, process_rank);
     calculate_size(sending_rows_size, sending_displacement, sending_matrix_size, matrix_a.columns_count, number_processes, process_rank);
-    calculate_size(sending_rows_size, receiving_displacement, receiving_matrix_size, matrix_a.columns_count, number_processes, process_rank);
+    calculate_size(sending_rows_size, receiving_displacement, receiving_matrix_size, matrix_b.columns_count, number_processes, process_rank);
 
     int rows_count = sending_rows_size[0];
 
@@ -128,12 +128,11 @@ void run_many_processes(int number_processes, int process_rank)
 
     double **data = allocate_matrix_memory(rows_count, matrix_a.columns_count);
     int size = rows_count * matrix_a.columns_count;
-
     MPI_Scatterv(&matrix_a.data[0][0], sending_matrix_size, sending_displacement, MPI_DOUBLE, &data[0][0], size, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     partial_matrix = new_matrix(rows_count, matrix_a.columns_count, data);
     double **result_data = multiply_matrix(&partial_matrix, &matrix_b);
-
+    size = partial_matrix.rows_count * matrix_b.columns_count;
     MPI_Gatherv(&result_data[0][0], size, MPI_DOUBLE, &matrix_answer.data[0][0], receiving_matrix_size, receiving_displacement, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     write_file(process_rank, &matrix_answer);
