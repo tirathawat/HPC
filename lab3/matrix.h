@@ -12,6 +12,8 @@ Matrix new_matrix(int rows_count, int columns_count, double **data);
 
 double **allocate_matrix_memory(int row_count, int column_count);
 
+void check_matrix_size_from_file(char *filename, int *rows_count, int *columns_count);
+
 void create_matrix_from_file(char *filename, Matrix *matrix);
 
 void write_matrix_file(char *filename, Matrix *matrix);

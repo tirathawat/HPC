@@ -28,6 +28,13 @@ double **allocate_matrix_memory(int row_count, int column_count)
     return matrix;
 }
 
+void check_matrix_size_from_file(char *filename, int *rows_count, int *columns_count)
+{
+    FILE *fp = fopen(filename, "r");
+    fscanf(fp, "%d %d", rows_count, columns_count);
+    fclose(fp);
+}
+
 void create_matrix_from_file(char *filename, Matrix *matrix)
 {
     int i, j;

@@ -1,6 +1,9 @@
 {
     "files.associations": {
         "functional": "c",
-        "parallel_helper.h": "c"
+        "parallel_helper.h": "c",
+        "array": "c",
+        "string": "c",
+        "string_view": "c"
     }
 }
