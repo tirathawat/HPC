@@ -159,6 +159,8 @@ void init_files_names(char **argv)
 
 int main(int argc, char *argv[])
 {
+    double start_time, end_time;
+
     int number_processes;
     int process_rank;
 
@@ -166,11 +168,26 @@ int main(int argc, char *argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &process_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &number_processes);
 
+    if (process_rank == 0)
+    {
+        start_time = MPI_Wtime();
+    }
+
     init_files_names(argv);
 
     handle_processes(number_processes, process_rank);
 
+    if (process_rank == 0)
+    {
+        end_time = MPI_Wtime();
+    }
+
     MPI_Finalize();
+
+    if (process_rank == 0)
+    {
+        printf("Time: %f\n", end_time - start_time);
+    }
 
     return 0;
 }
