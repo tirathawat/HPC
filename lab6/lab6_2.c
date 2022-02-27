@@ -22,6 +22,7 @@ int main(int argc, char *argv[])
     file_out = fopen(argv[4], "w+");
 
     fscanf(file_a, "%d %d", &number_of_row, &number_of_column);
+    fscanf(file_b, "%d %d", &number_of_row, &number_of_column);
     matrix_a = (float *)malloc(number_of_row * number_of_column * sizeof(float));
     matrix_b = (float *)malloc(number_of_row * number_of_column * sizeof(float));
     matrix_out = (float *)malloc(number_of_row * number_of_column * sizeof(float));
